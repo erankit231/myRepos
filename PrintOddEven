@@ -1,0 +1,109 @@
+package synchronization;
+
+public class PrintingNumbers
+{
+	public static void main(String a[])
+	{
+		Thread evenThread = new PrintOddEven();
+		evenThread.setName("EVEN");
+		Thread oddThread = new PrintOddEven();
+		oddThread.setName("ODD");
+		oddThread.start();
+		evenThread.start();
+	}
+}
+
+class PrintOddEven extends Thread
+{
+	/** Default value is false **/
+	// This is made static because as two threads are created(two objects),
+	// and I want to use this flag across all object
+	static volatile boolean isEven = false;
+	int max = 1000;
+	
+	// Same reason as above for making static and volatile so that thread
+	//should not read its value from thread cache
+	static volatile int i = 1;
+	
+	// A static object reference is used which is used as monitor for all
+	// threads/objects
+	static Object lock = new Object();
+	
+	@Override
+	public void run()
+	{
+		while (i <= max)
+		{
+			// Even number printing
+			if (i % 2 == 0)
+			{
+				String threadName = this.getName();
+				synchronized (lock)
+				{
+					try
+					{
+						if (!isEven || threadName.equals("ODD"))
+						{
+							System.out.println(threadName + " is waiting");
+							lock.wait();
+							continue;
+						}
+						System.out.println(this.getName() + " : " + i);
+						i = i + 1;
+						isEven = false;
+						lock.notify();
+						
+						// This condition helps in terminating the threads when
+						// numbers till max gets printed else the thread keep waiting
+						if (i < max)
+						{
+							// This line keeps this thread at wait so that
+							// second thread can work
+							// (This is done so that even thread prints even
+							// number and then odd thread print odd and vice versa)
+							lock.wait();
+						}
+					}
+					catch (InterruptedException ie)
+					{
+						ie.printStackTrace();
+					}
+				}
+			}
+			
+			// Odd number printing
+			else
+			{
+				synchronized (lock)
+				{
+					if (i % 2 != 0)
+					{
+						String threadName = this.getName();
+						try
+						{
+							//if (isEven)
+							if (isEven || threadName.equals("EVEN"))
+							{
+								System.out.println(threadName + " is waiting");
+								lock.wait();
+								continue;
+							}
+							System.out.println(this.getName() + " : " + i);
+							i = i + 1;
+							isEven = true;
+							lock.notify();
+							if (i < max)
+							{
+								lock.wait();
+							}
+						}
+						catch (InterruptedException ie)
+						{
+							ie.printStackTrace();
+						}
+					}
+				}
+			}
+		}
+	}
+}
